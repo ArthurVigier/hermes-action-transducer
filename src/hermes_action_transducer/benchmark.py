@@ -164,6 +164,7 @@ def benchmark_latency(
     samples: int = 64,
     warmup: int = 5,
 ) -> dict:
+    from hermes_action_transducer.learned_transducer import ActionIRNet
     from hermes_action_transducer.features import build_feature_vector
     import torch
 
