@@ -5,6 +5,7 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT_DIR"
 
 PYTHON_BIN="${PYTHON_BIN:-python}"
+RUN_MODE="${RUN_MODE:-train}"
 HF_DATASET_ID="${HF_DATASET_ID:?HF_DATASET_ID is required}"
 HF_SPLIT="${HF_SPLIT:-train}"
 ROBOT_PROFILE="${ROBOT_PROFILE:-arm}"
@@ -19,6 +20,10 @@ HIDDEN_DIM="${HIDDEN_DIM:-96}"
 DEVICE="${DEVICE:-cpu}"
 HF_STREAMING="${HF_STREAMING:-0}"
 TASKS_JSONL="${TASKS_JSONL:-}"
+BENCHMARK_MODE="${BENCHMARK_MODE:-complete}"
+BENCHMARK_MODES="${BENCHMARK_MODES:-}"
+BENCHMARK_RESULTS_PATH="${BENCHMARK_RESULTS_PATH:-$ROOT_DIR/benchmarks/results.json}"
+BENCHMARK_CHECKPOINT_DIR="${BENCHMARK_CHECKPOINT_DIR:-$ROOT_DIR/benchmarks/checkpoints}"
 FEATURE_MODE="${FEATURE_MODE:-rich}"
 FEATURE_RICH_PROJECTION_DIM="${FEATURE_RICH_PROJECTION_DIM:-32}"
 FEATURE_LAYER_SUMMARY_DIM="${FEATURE_LAYER_SUMMARY_DIM:-16}"
@@ -36,7 +41,7 @@ HERMES_LAYER_PROJECTION_DIM="${HERMES_LAYER_PROJECTION_DIM:-64}"
 HERMES_ADDITIONAL_LAYER_INDICES="${HERMES_ADDITIONAL_LAYER_INDICES:--4,-8}"
 HERMES_ATTN_IMPLEMENTATION="${HERMES_ATTN_IMPLEMENTATION:-}"
 
-mkdir -p "$(dirname "$DATASET_PATH")" "$(dirname "$CHECKPOINT_PATH")"
+mkdir -p "$(dirname "$DATASET_PATH")" "$(dirname "$CHECKPOINT_PATH")" "$(dirname "$BENCHMARK_RESULTS_PATH")" "$BENCHMARK_CHECKPOINT_DIR"
 
 CONVERT_ARGS=(
   --dataset-id "$HF_DATASET_ID"
@@ -76,23 +81,42 @@ fi
 echo "[convert_and_train] converting $HF_DATASET_ID -> $DATASET_PATH"
 "$PYTHON_BIN" scripts/convert_hf_dataset.py "${CONVERT_ARGS[@]}"
 
-echo "[convert_and_train] training -> $CHECKPOINT_PATH"
-"$PYTHON_BIN" scripts/train_supervised.py \
-  --dataset "$DATASET_PATH" \
-  --checkpoint "$CHECKPOINT_PATH" \
-  --epochs "$EPOCHS" \
-  --batch-size "$BATCH_SIZE" \
-  --learning-rate "$LEARNING_RATE" \
-  --hidden-dim "$HIDDEN_DIM" \
-  --feature-mode "$FEATURE_MODE" \
-  --rich-projection-dim "$FEATURE_RICH_PROJECTION_DIM" \
-  --layer-summary-dim "$FEATURE_LAYER_SUMMARY_DIM" \
-  --per-layer-projection-dim "$FEATURE_PER_LAYER_PROJECTION_DIM" \
-  --max-layer-projections "$FEATURE_MAX_LAYER_PROJECTIONS" \
-  --device "$DEVICE"
+if [[ "$RUN_MODE" == "benchmark" ]]; then
+  echo "[convert_and_train] benchmark mode=$BENCHMARK_MODE modes=$BENCHMARK_MODES"
+  "$PYTHON_BIN" scripts/benchmark_feature_modes.py \
+    --dataset "$DATASET_PATH" \
+    --checkpoint-dir "$BENCHMARK_CHECKPOINT_DIR" \
+    --results-out "$BENCHMARK_RESULTS_PATH" \
+    --benchmark-mode "$BENCHMARK_MODE" \
+    --modes "$BENCHMARK_MODES" \
+    --epochs "$EPOCHS" \
+    --batch-size "$BATCH_SIZE" \
+    --learning-rate "$LEARNING_RATE" \
+    --hidden-dim "$HIDDEN_DIM" \
+    --rich-projection-dim "$FEATURE_RICH_PROJECTION_DIM" \
+    --layer-summary-dim "$FEATURE_LAYER_SUMMARY_DIM" \
+    --per-layer-projection-dim "$FEATURE_PER_LAYER_PROJECTION_DIM" \
+    --max-layer-projections "$FEATURE_MAX_LAYER_PROJECTIONS" \
+    --device "$DEVICE"
+else
+  echo "[convert_and_train] training -> $CHECKPOINT_PATH"
+  "$PYTHON_BIN" scripts/train_supervised.py \
+    --dataset "$DATASET_PATH" \
+    --checkpoint "$CHECKPOINT_PATH" \
+    --epochs "$EPOCHS" \
+    --batch-size "$BATCH_SIZE" \
+    --learning-rate "$LEARNING_RATE" \
+    --hidden-dim "$HIDDEN_DIM" \
+    --feature-mode "$FEATURE_MODE" \
+    --rich-projection-dim "$FEATURE_RICH_PROJECTION_DIM" \
+    --layer-summary-dim "$FEATURE_LAYER_SUMMARY_DIM" \
+    --per-layer-projection-dim "$FEATURE_PER_LAYER_PROJECTION_DIM" \
+    --max-layer-projections "$FEATURE_MAX_LAYER_PROJECTIONS" \
+    --device "$DEVICE"
 
-echo "[convert_and_train] evaluating -> $CHECKPOINT_PATH"
-"$PYTHON_BIN" scripts/eval_supervised.py \
-  --dataset "$DATASET_PATH" \
-  --checkpoint "$CHECKPOINT_PATH" \
-  --device "$DEVICE"
+  echo "[convert_and_train] evaluating -> $CHECKPOINT_PATH"
+  "$PYTHON_BIN" scripts/eval_supervised.py \
+    --dataset "$DATASET_PATH" \
+    --checkpoint "$CHECKPOINT_PATH" \
+    --device "$DEVICE"
+fi

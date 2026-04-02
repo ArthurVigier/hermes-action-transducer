@@ -7,6 +7,7 @@ from hermes_action_transducer.constants import (
     LAYER_SUMMARY_DIM,
     MAX_LAYER_PROJECTIONS,
     MODE_VOCAB,
+    OBSERVATION_FEATURE_DIM,
     PER_LAYER_PROJECTION_DIM,
     RICH_PROJECTION_DIM,
 )
@@ -36,22 +37,28 @@ def build_feature_vector(
     state_vec = _string_to_vector(observation.state_text, size=8)
     profile_vec = [1.0 if profile.default_mode == mode else 0.0 for mode in MODE_VOCAB]
     proprio = observation.proprio[:8] + [0.0] * max(0, 8 - len(observation.proprio[:8]))
-    base = (
+    observation_only = (
         task_vec
         + state_vec
-        + _fit_vector(hermes_state.thought_vector, size=8)
-        + _fit_vector(hermes_state.intent_vector, size=8)
         + profile_vec
         + proprio[:8]
     )
+    compact = (
+        observation_only
+        + _fit_vector(hermes_state.thought_vector, size=8)
+        + _fit_vector(hermes_state.intent_vector, size=8)
+    )
+
+    if config.mode == "vanilla":
+        return observation_only
 
     if config.mode == "compact":
-        return base
+        return compact
 
     hidden_projection = _fit_vector(hermes_state.hidden_projection, size=config.rich_projection_dim)
     if config.mode == "rich":
         layer_summary = _aggregate_layer_projections(hermes_state, size=config.layer_summary_dim)
-        return base + hidden_projection + layer_summary
+        return compact + hidden_projection + layer_summary
 
     if config.mode == "per_layer":
         per_layer = _flatten_layer_projections(
@@ -59,13 +66,24 @@ def build_feature_vector(
             projection_dim=config.per_layer_projection_dim,
             max_layers=config.max_layer_projections,
         )
-        return base + hidden_projection + per_layer
+        return compact + hidden_projection + per_layer
+
+    if config.mode == "full":
+        layer_summary = _aggregate_layer_projections(hermes_state, size=config.layer_summary_dim)
+        per_layer = _flatten_layer_projections(
+            hermes_state,
+            projection_dim=config.per_layer_projection_dim,
+            max_layers=config.max_layer_projections,
+        )
+        return compact + hidden_projection + layer_summary + per_layer
 
     raise ValueError(f"Unknown feature mode: {config.mode}")
 
 
 def get_feature_dim(config: FeatureConfig | None = None) -> int:
     config = config or FeatureConfig()
+    if config.mode == "vanilla":
+        return OBSERVATION_FEATURE_DIM
     if config.mode == "compact":
         return BASE_FEATURE_DIM
     if config.mode == "rich":
@@ -73,6 +91,13 @@ def get_feature_dim(config: FeatureConfig | None = None) -> int:
     if config.mode == "per_layer":
         return BASE_FEATURE_DIM + config.rich_projection_dim + (
             config.per_layer_projection_dim * config.max_layer_projections
+        )
+    if config.mode == "full":
+        return (
+            BASE_FEATURE_DIM
+            + config.rich_projection_dim
+            + config.layer_summary_dim
+            + (config.per_layer_projection_dim * config.max_layer_projections)
         )
     raise ValueError(f"Unknown feature mode: {config.mode}")
 

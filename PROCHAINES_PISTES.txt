@@ -1,0 +1,76 @@
+PROCHAINES PISTES
+
+1. Mode direct latent
+
+Idee:
+- court-circuiter encore plus le token-level generation
+- ne plus seulement extraire des hidden states Hermes pour les compresser
+- injecter directement dans les premieres couches de l'espace latent des embeddings specifiquement calibres pour l'action
+
+Objectif:
+- faire emerger un mode ou Hermes n'exprime plus seulement une representation a lire
+- mais ou un "latent action prompt" ou "latent control packet" est envoye directement dans le modele ou dans le transducteur
+
+Forme possible:
+- un encodeur produit un paquet latent appris
+- ce paquet est projete vers une ou plusieurs couches cibles
+- le transducteur lit ensuite la reponse du modele dans cet espace plutot que de repartir d'un texte
+
+Questions a traiter:
+- a quelles couches injecter
+- quelle taille de paquet latent utiliser
+- injection additive, prefixe latent, ou remplacement partiel de tokens internes
+- comment garder Hermes libre sans le detruire
+
+Plan concret:
+- ajouter un "latent injection backend"
+- comparer 3 variantes:
+  - lecture seule des hidden states
+  - lecture + projection directe
+  - injection directe dans couches precoces
+- mesurer latence, stabilite, fidelite ActionIR, capacite multi-taches
+
+
+2. Mode multi
+
+Idee:
+- utiliser plusieurs traducteurs ou plusieurs compilateurs pour faire controler plusieurs robots en meme temps
+- profiter de la richesse de l'espace latent pour partager une intention commune et la specialiser par embodiment
+
+Objectif:
+- un meme Hermes central
+- un espace latent commun
+- plusieurs sorties embodiment-aware en parallele
+
+Architecture cible:
+- Hermes -> latent shared state
+- latent shared state -> translator arm
+- latent shared state -> translator go2
+- latent shared state -> translator g1
+- chaque branche compile ensuite vers son runtime/robot
+
+Questions a traiter:
+- faut-il un tronc commun + têtes speciales
+- faut-il un traducteur par robot ou un traducteur multi-head
+- comment synchroniser plusieurs robots sur un meme sous-objectif
+- comment partager attention, priorites, safety et timing
+
+Plan concret:
+- definir un "Shared Action Latent"
+- ajouter un "multi-compiler runtime"
+- entrainer:
+  - shared encoder
+  - robot-specific heads
+  - eventuellement une tete de coordination inter-robots
+
+Benchmarks a viser:
+- meme objectif, plusieurs embodiments
+- memes latents, politiques specialisees
+- mesurer coherence inter-robots, collisions, latence, reussite de tache
+
+
+Intuition directrice
+
+- ne pas brider Hermes a une simple selection de tools
+- utiliser le latent comme surface de coordination riche
+- garder DimOS ou un runtime robot comme couche d'execution, pas comme cerveau

@@ -26,7 +26,7 @@ def main() -> int:
     ap.add_argument("--learning-rate", type=float, default=1e-3)
     ap.add_argument("--hidden-dim", type=int, default=96)
     ap.add_argument("--device", default="cpu")
-    ap.add_argument("--feature-mode", choices=["compact", "rich", "per_layer"], default="rich")
+    ap.add_argument("--feature-mode", choices=["vanilla", "compact", "rich", "per_layer", "full"], default="rich")
     ap.add_argument("--rich-projection-dim", type=int, default=32)
     ap.add_argument("--layer-summary-dim", type=int, default=16)
     ap.add_argument("--per-layer-projection-dim", type=int, default=64)

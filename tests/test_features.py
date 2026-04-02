@@ -25,11 +25,23 @@ def test_feature_modes_have_expected_dims():
     profile = get_profile("arm")
     state = _sample_state()
 
+    vanilla = FeatureConfig(mode="vanilla")
     compact = FeatureConfig(mode="compact")
     rich = FeatureConfig(mode="rich", rich_projection_dim=32, layer_summary_dim=16)
     per_layer = FeatureConfig(mode="per_layer", rich_projection_dim=32, per_layer_projection_dim=12, max_layer_projections=3)
+    full = FeatureConfig(
+        mode="full",
+        rich_projection_dim=32,
+        layer_summary_dim=16,
+        per_layer_projection_dim=12,
+        max_layer_projections=3,
+    )
 
+    assert len(build_feature_vector(state, observation, profile, vanilla)) == get_feature_dim(vanilla)
     assert len(build_feature_vector(state, observation, profile, compact)) == get_feature_dim(compact)
     assert len(build_feature_vector(state, observation, profile, rich)) == get_feature_dim(rich)
     assert len(build_feature_vector(state, observation, profile, per_layer)) == get_feature_dim(per_layer)
-    assert get_feature_dim(compact) < get_feature_dim(rich) < get_feature_dim(per_layer)
+    assert len(build_feature_vector(state, observation, profile, full)) == get_feature_dim(full)
+    assert get_feature_dim(vanilla) < get_feature_dim(compact) < get_feature_dim(rich)
+    assert get_feature_dim(rich) < get_feature_dim(full)
+    assert get_feature_dim(per_layer) < get_feature_dim(full)

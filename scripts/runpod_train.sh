@@ -9,12 +9,17 @@ export OMP_NUM_THREADS="${OMP_NUM_THREADS:-1}"
 export MKL_NUM_THREADS="${MKL_NUM_THREADS:-1}"
 
 PYTHON_BIN="${PYTHON_BIN:-python}"
+RUN_MODE="${RUN_MODE:-train}"
 DATASET_PATH="${DATASET_PATH:-$ROOT_DIR/data/bootstrap_train.jsonl}"
 CHECKPOINT_PATH="${CHECKPOINT_PATH:-$ROOT_DIR/checkpoints/action_ir.pt}"
 EPOCHS="${EPOCHS:-50}"
 BATCH_SIZE="${BATCH_SIZE:-8}"
 LEARNING_RATE="${LEARNING_RATE:-0.001}"
 HIDDEN_DIM="${HIDDEN_DIM:-96}"
+BENCHMARK_MODE="${BENCHMARK_MODE:-complete}"
+BENCHMARK_MODES="${BENCHMARK_MODES:-}"
+BENCHMARK_RESULTS_PATH="${BENCHMARK_RESULTS_PATH:-$ROOT_DIR/benchmarks/results.json}"
+BENCHMARK_CHECKPOINT_DIR="${BENCHMARK_CHECKPOINT_DIR:-$ROOT_DIR/benchmarks/checkpoints}"
 HF_DATASET_ID="${HF_DATASET_ID:-}"
 HF_SPLIT="${HF_SPLIT:-train}"
 ROBOT_PROFILE="${ROBOT_PROFILE:-arm}"
@@ -69,7 +74,7 @@ PY
 
 echo "[runpod] device: $DEVICE"
 
-mkdir -p "$(dirname "$DATASET_PATH")" "$(dirname "$CHECKPOINT_PATH")"
+mkdir -p "$(dirname "$DATASET_PATH")" "$(dirname "$CHECKPOINT_PATH")" "$(dirname "$BENCHMARK_RESULTS_PATH")" "$BENCHMARK_CHECKPOINT_DIR"
 
 if [[ ! -f "$DATASET_PATH" ]]; then
   if [[ -n "$HF_DATASET_ID" ]]; then
@@ -118,25 +123,44 @@ if [[ ! -f "$DATASET_PATH" ]]; then
   fi
 fi
 
-echo "[runpod] training checkpoint -> $CHECKPOINT_PATH"
-"$PYTHON_BIN" scripts/train_supervised.py \
-  --dataset "$DATASET_PATH" \
-  --checkpoint "$CHECKPOINT_PATH" \
-  --epochs "$EPOCHS" \
-  --batch-size "$BATCH_SIZE" \
-  --learning-rate "$LEARNING_RATE" \
-  --hidden-dim "$HIDDEN_DIM" \
-  --feature-mode "$FEATURE_MODE" \
-  --rich-projection-dim "$FEATURE_RICH_PROJECTION_DIM" \
-  --layer-summary-dim "$FEATURE_LAYER_SUMMARY_DIM" \
-  --per-layer-projection-dim "$FEATURE_PER_LAYER_PROJECTION_DIM" \
-  --max-layer-projections "$FEATURE_MAX_LAYER_PROJECTIONS" \
-  --device "$DEVICE"
+if [[ "$RUN_MODE" == "benchmark" ]]; then
+  echo "[runpod] running benchmark mode=$BENCHMARK_MODE modes=$BENCHMARK_MODES"
+  "$PYTHON_BIN" scripts/benchmark_feature_modes.py \
+    --dataset "$DATASET_PATH" \
+    --checkpoint-dir "$BENCHMARK_CHECKPOINT_DIR" \
+    --results-out "$BENCHMARK_RESULTS_PATH" \
+    --benchmark-mode "$BENCHMARK_MODE" \
+    --modes "$BENCHMARK_MODES" \
+    --epochs "$EPOCHS" \
+    --batch-size "$BATCH_SIZE" \
+    --learning-rate "$LEARNING_RATE" \
+    --hidden-dim "$HIDDEN_DIM" \
+    --rich-projection-dim "$FEATURE_RICH_PROJECTION_DIM" \
+    --layer-summary-dim "$FEATURE_LAYER_SUMMARY_DIM" \
+    --per-layer-projection-dim "$FEATURE_PER_LAYER_PROJECTION_DIM" \
+    --max-layer-projections "$FEATURE_MAX_LAYER_PROJECTIONS" \
+    --device "$DEVICE"
+else
+  echo "[runpod] training checkpoint -> $CHECKPOINT_PATH"
+  "$PYTHON_BIN" scripts/train_supervised.py \
+    --dataset "$DATASET_PATH" \
+    --checkpoint "$CHECKPOINT_PATH" \
+    --epochs "$EPOCHS" \
+    --batch-size "$BATCH_SIZE" \
+    --learning-rate "$LEARNING_RATE" \
+    --hidden-dim "$HIDDEN_DIM" \
+    --feature-mode "$FEATURE_MODE" \
+    --rich-projection-dim "$FEATURE_RICH_PROJECTION_DIM" \
+    --layer-summary-dim "$FEATURE_LAYER_SUMMARY_DIM" \
+    --per-layer-projection-dim "$FEATURE_PER_LAYER_PROJECTION_DIM" \
+    --max-layer-projections "$FEATURE_MAX_LAYER_PROJECTIONS" \
+    --device "$DEVICE"
 
-echo "[runpod] evaluating checkpoint -> $CHECKPOINT_PATH"
-"$PYTHON_BIN" scripts/eval_supervised.py \
-  --dataset "$DATASET_PATH" \
-  --checkpoint "$CHECKPOINT_PATH" \
-  --device "$DEVICE"
+  echo "[runpod] evaluating checkpoint -> $CHECKPOINT_PATH"
+  "$PYTHON_BIN" scripts/eval_supervised.py \
+    --dataset "$DATASET_PATH" \
+    --checkpoint "$CHECKPOINT_PATH" \
+    --device "$DEVICE"
+fi
 
 echo "[runpod] done"

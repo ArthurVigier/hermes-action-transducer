@@ -94,9 +94,11 @@ python scripts/train_supervised.py \
 
 Tu peux choisir trois formes de features Hermes:
 
+- `vanilla`: baseline sans latents Hermes, seulement observation/task/profile/proprio
 - `compact`: seulement la forme 8+8 classique
 - `rich`: `8+8` + `hidden_projection` + resume agrege des couches
 - `per_layer`: `8+8` + `hidden_projection` + concat explicite des projections par couche
+- `full`: `8+8` + `hidden_projection` + resume agrege + projections explicites par couche
 
 Exemple:
 
@@ -108,6 +110,38 @@ python scripts/train_supervised.py \
   --rich-projection-dim 32 \
   --per-layer-projection-dim 64 \
   --max-layer-projections 3 \
+  --epochs 20 \
+  --device cuda
+```
+
+## Benchmark
+
+Le repo sait aussi lancer:
+
+- un benchmark complet: `vanilla`, `compact`, `rich`, `per_layer`, `full`
+- un benchmark par paires: par exemple `vanilla,full`
+
+Script direct:
+
+```bash
+python scripts/benchmark_feature_modes.py \
+  --dataset data/droid_100_hermes_supervised.jsonl \
+  --checkpoint-dir benchmarks/checkpoints \
+  --results-out benchmarks/results.json \
+  --benchmark-mode complete \
+  --epochs 20 \
+  --device cuda
+```
+
+Exemple pair:
+
+```bash
+python scripts/benchmark_feature_modes.py \
+  --dataset data/droid_100_hermes_supervised.jsonl \
+  --checkpoint-dir benchmarks/pair_checkpoints \
+  --results-out benchmarks/pair_results.json \
+  --benchmark-mode pair \
+  --modes vanilla,full \
   --epochs 20 \
   --device cuda
 ```
