@@ -37,6 +37,43 @@ cd /Users/robertbadinter/Downloads/latent-relay/separate-repos/hermes-action-tra
 python scripts/run_transducer.py --task "Pick up the mug and place it on the coaster" --robot-profile arm
 ```
 
+## Hermes reel via Hugging Face
+
+La `v1` peut maintenant utiliser un vrai encodeur Hermes en inference-only pour extraire des hidden states compacts.
+
+Installe d'abord les dependances:
+
+```bash
+pip install -e ".[hermes]"
+```
+
+Extraction simple d'un `HermesState`:
+
+```bash
+python scripts/extract_hermes_state.py \
+  --task "Pick up the mug and place it on the coaster" \
+  --state-text "mug left of gripper; coaster on right" \
+  --robot-profile arm \
+  --model-id NousResearch/Hermes-4.3-36B
+```
+
+Tu peux aussi utiliser directement le pipeline avec le vrai encodeur:
+
+```bash
+python scripts/run_transducer.py \
+  --task "Pick up the mug and place it on the coaster" \
+  --state-text "mug left of gripper; coaster on right" \
+  --robot-profile arm \
+  --encoder-backend hermes_hf \
+  --model-id NousResearch/Hermes-4.3-36B
+```
+
+Note:
+
+- le modele cible par defaut est `NousResearch/Hermes-4.3-36B`
+- l'encodeur extrait les `hidden_states` et les compresse en `thought_vector` et `intent_vector`
+- cette etape est inference-only pour l'instant, pas encore du training sur hidden states Hermes
+
 ## Entrainement supervise
 
 Bootstrappe d'abord un petit dataset de depart:

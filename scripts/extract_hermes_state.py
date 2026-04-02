@@ -14,7 +14,7 @@ if str(SRC) not in sys.path:
 
 from hermes_action_transducer.encoder import HermesHFConfig, HermesHFEncoder
 from hermes_action_transducer.models import RobotObservation
-from hermes_action_transducer.pipeline import ActionPipeline
+from hermes_action_transducer.profiles import get_profile
 
 
 def _parse_proprio(raw: str) -> list[float]:
@@ -24,13 +24,12 @@ def _parse_proprio(raw: str) -> list[float]:
 
 
 def main() -> int:
-    ap = argparse.ArgumentParser(description="Run Hermes Action Transducer")
+    ap = argparse.ArgumentParser(description="Extract Hermes hidden-state summary via Hugging Face")
     ap.add_argument("--task", required=True)
     ap.add_argument("--state-text", default="")
     ap.add_argument("--image-path", default=None)
     ap.add_argument("--proprio", default="")
     ap.add_argument("--robot-profile", choices=["arm", "go2", "g1"], default="arm")
-    ap.add_argument("--encoder-backend", choices=["simple", "hermes_hf"], default="simple")
     ap.add_argument("--model-id", default="NousResearch/Hermes-4.3-36B")
     ap.add_argument("--device-map", default="auto")
     ap.add_argument("--torch-dtype", default="auto")
@@ -40,28 +39,26 @@ def main() -> int:
     ap.add_argument("--attn-implementation", default=None)
     args = ap.parse_args()
 
+    profile = get_profile(args.robot_profile)
     observation = RobotObservation(
         task=args.task,
         state_text=args.state_text,
         image_path=args.image_path,
         proprio=_parse_proprio(args.proprio),
     )
-    encoder = None
-    if args.encoder_backend == "hermes_hf":
-        encoder = HermesHFEncoder(
-            HermesHFConfig(
-                model_id=args.model_id,
-                device_map=args.device_map,
-                torch_dtype=args.torch_dtype,
-                max_length=args.max_length,
-                layer_index=args.layer_index,
-                pool_strategy=args.pool_strategy,
-                attn_implementation=args.attn_implementation,
-            )
+    encoder = HermesHFEncoder(
+        HermesHFConfig(
+            model_id=args.model_id,
+            device_map=args.device_map,
+            torch_dtype=args.torch_dtype,
+            max_length=args.max_length,
+            layer_index=args.layer_index,
+            pool_strategy=args.pool_strategy,
+            attn_implementation=args.attn_implementation,
         )
-    pipeline = ActionPipeline(encoder=encoder)
-    result = pipeline.run(observation, robot_profile=args.robot_profile)
-    print(json.dumps(result.to_dict(), indent=2, ensure_ascii=False))
+    )
+    state = encoder.encode(observation, profile)
+    print(json.dumps(state.to_dict(), indent=2, ensure_ascii=False))
     return 0
 
 
