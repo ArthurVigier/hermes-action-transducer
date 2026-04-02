@@ -20,6 +20,15 @@ from hermes_action_transducer.models import (
     RobotProfileSpec,
     TargetRef,
 )
+from hermes_action_transducer.plan_stack import (
+    LearnedPlanCodebook,
+    PlanCodeDataset,
+    PlanConditionedControlDataset,
+    PlanStackTrainingConfig,
+    discover_plan_codebook,
+    derive_plan_code,
+    train_plan_stack,
+)
 from hermes_action_transducer.pipeline import ActionPipeline
 from hermes_action_transducer.profiles import DEFAULT_PROFILE_NAME, PROFILE_REGISTRY
 from hermes_action_transducer.transducer import ProfileAwareActionTransducer
@@ -39,7 +48,11 @@ __all__ = [
     "HermesHFConfig",
     "HermesHFEncoder",
     "infer_capx_tier",
+    "LearnedPlanCodebook",
     "parse_capx_summary_text",
+    "PlanCodeDataset",
+    "PlanConditionedControlDataset",
+    "PlanStackTrainingConfig",
     "PROFILE_REGISTRY",
     "PipelineResult",
     "ProfileAwareActionTransducer",
@@ -49,4 +62,7 @@ __all__ = [
     "run_capx_benchmark",
     "SimpleHermesEncoder",
     "TargetRef",
+    "discover_plan_codebook",
+    "derive_plan_code",
+    "train_plan_stack",
 ]

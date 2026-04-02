@@ -22,6 +22,11 @@ BENCHMARK_MODE="${BENCHMARK_MODE:-complete}"
 BENCHMARK_MODES="${BENCHMARK_MODES:-}"
 BENCHMARK_RESULTS_PATH="${BENCHMARK_RESULTS_PATH:-$ROOT_DIR/benchmarks/results.json}"
 BENCHMARK_CHECKPOINT_DIR="${BENCHMARK_CHECKPOINT_DIR:-$ROOT_DIR/benchmarks/checkpoints}"
+PLAN_STACK_RESULTS_PATH="${PLAN_STACK_RESULTS_PATH:-$ROOT_DIR/benchmarks/plan_stack_results.json}"
+PLAN_STACK_CHECKPOINT_DIR="${PLAN_STACK_CHECKPOINT_DIR:-$ROOT_DIR/benchmarks/plan_stack_checkpoints}"
+PLAN_STACK_FEATURE_MODE="${PLAN_STACK_FEATURE_MODE:-compact}"
+PLAN_STACK_MAX_CODES="${PLAN_STACK_MAX_CODES:-8}"
+PLAN_STACK_KMEANS_ITERATIONS="${PLAN_STACK_KMEANS_ITERATIONS:-12}"
 LAYER_SWEEP_LAYERS="${LAYER_SWEEP_LAYERS:--1,-2,-4,-8,-16}"
 LAYER_SWEEP_RESULTS_PATH="${LAYER_SWEEP_RESULTS_PATH:-$ROOT_DIR/benchmarks/layer_sweep_results.json}"
 LAYER_SWEEP_DATASET_DIR="${LAYER_SWEEP_DATASET_DIR:-$ROOT_DIR/data/layer_sweep}"
@@ -84,7 +89,7 @@ PY
 
 echo "[runpod] device: $DEVICE"
 
-mkdir -p "$(dirname "$DATASET_PATH")" "$(dirname "$CHECKPOINT_PATH")" "$(dirname "$BENCHMARK_RESULTS_PATH")" "$BENCHMARK_CHECKPOINT_DIR"
+mkdir -p "$(dirname "$DATASET_PATH")" "$(dirname "$CHECKPOINT_PATH")" "$(dirname "$BENCHMARK_RESULTS_PATH")" "$BENCHMARK_CHECKPOINT_DIR" "$(dirname "$PLAN_STACK_RESULTS_PATH")" "$PLAN_STACK_CHECKPOINT_DIR"
 if [[ -n "$HF_CACHE_DIR" ]]; then
   mkdir -p "$HF_CACHE_DIR"
   export HF_HOME="${HF_HOME:-$HF_CACHE_DIR}"
@@ -164,6 +169,24 @@ if [[ "$RUN_MODE" == "benchmark" ]]; then
     --max-layer-projections "$FEATURE_MAX_LAYER_PROJECTIONS" \
     --latency-samples "$LATENCY_SAMPLES" \
     --latency-warmup "$LATENCY_WARMUP" \
+    --device "$DEVICE"
+elif [[ "$RUN_MODE" == "plan_stack" ]]; then
+  echo "[runpod] running hierarchical plan stack"
+  "$PYTHON_BIN" scripts/train_plan_stack.py \
+    --dataset "$DATASET_PATH" \
+    --checkpoint-dir "$PLAN_STACK_CHECKPOINT_DIR" \
+    --results-out "$PLAN_STACK_RESULTS_PATH" \
+    --epochs "$EPOCHS" \
+    --batch-size "$BATCH_SIZE" \
+    --learning-rate "$LEARNING_RATE" \
+    --hidden-dim "$HIDDEN_DIM" \
+    --max-plan-codes "$PLAN_STACK_MAX_CODES" \
+    --kmeans-iterations "$PLAN_STACK_KMEANS_ITERATIONS" \
+    --feature-mode "$PLAN_STACK_FEATURE_MODE" \
+    --rich-projection-dim "$FEATURE_RICH_PROJECTION_DIM" \
+    --layer-summary-dim "$FEATURE_LAYER_SUMMARY_DIM" \
+    --per-layer-projection-dim "$FEATURE_PER_LAYER_PROJECTION_DIM" \
+    --max-layer-projections "$FEATURE_MAX_LAYER_PROJECTIONS" \
     --device "$DEVICE"
 elif [[ "$RUN_MODE" == "layer_sweep" ]]; then
   echo "[runpod] running layer sweep layers=$LAYER_SWEEP_LAYERS"
