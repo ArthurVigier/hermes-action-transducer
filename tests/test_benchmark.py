@@ -2,7 +2,12 @@ from __future__ import annotations
 
 import pytest
 
-from hermes_action_transducer.benchmark import make_feature_config, resolve_benchmark_modes
+from hermes_action_transducer.benchmark import (
+    _metric_delta,
+    _percentile,
+    make_feature_config,
+    resolve_benchmark_modes,
+)
 
 
 def test_resolve_complete_modes():
@@ -28,3 +33,13 @@ def test_make_feature_config():
     )
     assert config.mode == "per_layer"
     assert config.max_layer_projections == 3
+
+
+def test_percentile_interpolates():
+    assert _percentile([1.0, 2.0, 3.0, 4.0], 50) == 2.5
+    assert _percentile([1.0, 2.0, 3.0, 4.0], 95) == 3.85
+
+
+def test_metric_delta_handles_missing_values():
+    assert _metric_delta(3.0, 1.5) == 1.5
+    assert _metric_delta(None, 1.0) is None

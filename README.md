@@ -120,6 +120,12 @@ Le repo sait aussi lancer:
 
 - un benchmark complet: `vanilla`, `compact`, `rich`, `per_layer`, `full`
 - un benchmark par paires: par exemple `vanilla,full`
+- avec mesures de latence d'inference:
+  - `avg_feature_build_latency_ms`
+  - `avg_model_forward_latency_ms`
+  - `avg_end_to_end_latency_ms`
+  - `p50_end_to_end_latency_ms`
+  - `p95_end_to_end_latency_ms`
 
 Script direct:
 
@@ -130,6 +136,8 @@ python scripts/benchmark_feature_modes.py \
   --results-out benchmarks/results.json \
   --benchmark-mode complete \
   --epochs 20 \
+  --latency-samples 64 \
+  --latency-warmup 5 \
   --device cuda
 ```
 

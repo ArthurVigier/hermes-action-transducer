@@ -31,6 +31,8 @@ def main() -> int:
     ap.add_argument("--layer-summary-dim", type=int, default=16)
     ap.add_argument("--per-layer-projection-dim", type=int, default=64)
     ap.add_argument("--max-layer-projections", type=int, default=3)
+    ap.add_argument("--latency-samples", type=int, default=64)
+    ap.add_argument("--latency-warmup", type=int, default=5)
     args = ap.parse_args()
 
     result = run_feature_benchmark(
@@ -47,6 +49,8 @@ def main() -> int:
         layer_summary_dim=args.layer_summary_dim,
         per_layer_projection_dim=args.per_layer_projection_dim,
         max_layer_projections=args.max_layer_projections,
+        latency_samples=args.latency_samples,
+        latency_warmup=args.latency_warmup,
     )
     out = Path(args.results_out)
     out.parent.mkdir(parents=True, exist_ok=True)
