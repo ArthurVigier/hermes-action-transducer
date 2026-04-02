@@ -9,7 +9,12 @@ from torch.utils.data import Dataset
 
 from hermes_action_transducer.constants import HORIZON_VOCAB, MODE_VOCAB, SPEED_VOCAB, TOOL_VOCAB
 from hermes_action_transducer.encoder import SimpleHermesEncoder
-from hermes_action_transducer.features import action_ir_target_summary, build_feature_vector
+from hermes_action_transducer.features import (
+    FeatureConfig,
+    action_ir_target_summary,
+    build_feature_vector,
+    get_feature_dim,
+)
 from hermes_action_transducer.models import ActionIR, HermesState, RobotObservation, RobotProfileSpec, TargetRef
 from hermes_action_transducer.profiles import get_profile
 
@@ -23,10 +28,12 @@ class SupervisedExample:
 
 
 class JSONLSupervisedDataset(Dataset):
-    def __init__(self, path: str | Path, *, encoder=None) -> None:
+    def __init__(self, path: str | Path, *, encoder=None, feature_config: FeatureConfig | None = None) -> None:
         self.path = Path(path)
         self.encoder = encoder or SimpleHermesEncoder()
+        self.feature_config = feature_config or FeatureConfig()
         self.examples = [self._parse_line(line) for line in self.path.read_text().splitlines() if line.strip()]
+        self.feature_dim = get_feature_dim(self.feature_config)
 
     def __len__(self) -> int:
         return len(self.examples)
@@ -34,7 +41,12 @@ class JSONLSupervisedDataset(Dataset):
     def __getitem__(self, index: int) -> dict[str, torch.Tensor]:
         example = self.examples[index]
         target = action_ir_target_summary(example.action_ir)
-        feature_vector = build_feature_vector(example.hermes_state, example.observation, example.profile)
+        feature_vector = build_feature_vector(
+            example.hermes_state,
+            example.observation,
+            example.profile,
+            self.feature_config,
+        )
         return {
             "features": torch.tensor(feature_vector, dtype=torch.float32),
             "mode": torch.tensor(MODE_VOCAB.index(str(target["mode"])), dtype=torch.long),

@@ -7,6 +7,7 @@ from hermes_action_transducer.conversion import (
     convert_episode_rows_to_supervised_rows,
     load_task_lookup_from_jsonl,
 )
+from hermes_action_transducer.models import HermesState
 
 
 def test_conversion_groups_rows_by_episode():
@@ -123,3 +124,31 @@ def test_bridge_conversion_uses_task_lookup_and_navigation_bias():
     assert example["observation"]["task"] == "Go to the next room"
     assert example["action_ir"]["mode"] == "navigation"
     assert example["action_ir"]["skill_prior"][0] in {"goto", "relative_move"}
+
+
+def test_conversion_accepts_injected_encoder():
+    class FakeEncoder:
+        def encode(self, observation, profile):
+            _ = (observation, profile)
+            return HermesState(
+                summary_text="fake",
+                thought_vector=[0.1] * 8,
+                intent_vector=[0.2] * 8,
+                metadata={"encoder_backend": "fake"},
+            )
+
+    rows = [
+        {
+            "episode_index": 0,
+            "frame_index": 0,
+            "task": "Pick up the mug",
+            "observation.state": [0.1] * 7,
+            "action": [0.0] * 7,
+        }
+    ]
+    examples = convert_episode_rows_to_supervised_rows(
+        rows,
+        robot_profile="arm",
+        encoder=FakeEncoder(),
+    )
+    assert examples[0]["hermes_state"]["metadata"]["encoder_backend"] == "fake"

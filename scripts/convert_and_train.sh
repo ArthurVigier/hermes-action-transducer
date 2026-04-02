@@ -19,6 +19,22 @@ HIDDEN_DIM="${HIDDEN_DIM:-96}"
 DEVICE="${DEVICE:-cpu}"
 HF_STREAMING="${HF_STREAMING:-0}"
 TASKS_JSONL="${TASKS_JSONL:-}"
+FEATURE_MODE="${FEATURE_MODE:-rich}"
+FEATURE_RICH_PROJECTION_DIM="${FEATURE_RICH_PROJECTION_DIM:-32}"
+FEATURE_LAYER_SUMMARY_DIM="${FEATURE_LAYER_SUMMARY_DIM:-16}"
+FEATURE_PER_LAYER_PROJECTION_DIM="${FEATURE_PER_LAYER_PROJECTION_DIM:-64}"
+FEATURE_MAX_LAYER_PROJECTIONS="${FEATURE_MAX_LAYER_PROJECTIONS:-3}"
+ENCODER_BACKEND="${ENCODER_BACKEND:-simple}"
+HERMES_MODEL_ID="${HERMES_MODEL_ID:-NousResearch/Hermes-4.3-36B}"
+HERMES_DEVICE_MAP="${HERMES_DEVICE_MAP:-auto}"
+HERMES_TORCH_DTYPE="${HERMES_TORCH_DTYPE:-auto}"
+HERMES_MAX_LENGTH="${HERMES_MAX_LENGTH:-1024}"
+HERMES_LAYER_INDEX="${HERMES_LAYER_INDEX:--1}"
+HERMES_POOL_STRATEGY="${HERMES_POOL_STRATEGY:-mean}"
+HERMES_RICH_PROJECTION_DIM="${HERMES_RICH_PROJECTION_DIM:-128}"
+HERMES_LAYER_PROJECTION_DIM="${HERMES_LAYER_PROJECTION_DIM:-64}"
+HERMES_ADDITIONAL_LAYER_INDICES="${HERMES_ADDITIONAL_LAYER_INDICES:--4,-8}"
+HERMES_ATTN_IMPLEMENTATION="${HERMES_ATTN_IMPLEMENTATION:-}"
 
 mkdir -p "$(dirname "$DATASET_PATH")" "$(dirname "$CHECKPOINT_PATH")"
 
@@ -26,6 +42,7 @@ CONVERT_ARGS=(
   --dataset-id "$HF_DATASET_ID"
   --split "$HF_SPLIT"
   --robot-profile "$ROBOT_PROFILE"
+  --encoder-backend "$ENCODER_BACKEND"
   --out "$DATASET_PATH"
   --max-rows "$MAX_ROWS"
   --max-episodes "$MAX_EPISODES"
@@ -39,6 +56,23 @@ if [[ -n "$TASKS_JSONL" ]]; then
   CONVERT_ARGS+=(--tasks-jsonl "$TASKS_JSONL")
 fi
 
+if [[ "$ENCODER_BACKEND" == "hermes_hf" ]]; then
+  CONVERT_ARGS+=(
+    --model-id "$HERMES_MODEL_ID"
+    --device-map "$HERMES_DEVICE_MAP"
+    --torch-dtype "$HERMES_TORCH_DTYPE"
+    --max-length "$HERMES_MAX_LENGTH"
+    --layer-index "$HERMES_LAYER_INDEX"
+    --pool-strategy "$HERMES_POOL_STRATEGY"
+    --rich-projection-dim "$HERMES_RICH_PROJECTION_DIM"
+    --layer-projection-dim "$HERMES_LAYER_PROJECTION_DIM"
+    --additional-layer-indices "$HERMES_ADDITIONAL_LAYER_INDICES"
+  )
+  if [[ -n "$HERMES_ATTN_IMPLEMENTATION" ]]; then
+    CONVERT_ARGS+=(--attn-implementation "$HERMES_ATTN_IMPLEMENTATION")
+  fi
+fi
+
 echo "[convert_and_train] converting $HF_DATASET_ID -> $DATASET_PATH"
 "$PYTHON_BIN" scripts/convert_hf_dataset.py "${CONVERT_ARGS[@]}"
 
@@ -50,6 +84,11 @@ echo "[convert_and_train] training -> $CHECKPOINT_PATH"
   --batch-size "$BATCH_SIZE" \
   --learning-rate "$LEARNING_RATE" \
   --hidden-dim "$HIDDEN_DIM" \
+  --feature-mode "$FEATURE_MODE" \
+  --rich-projection-dim "$FEATURE_RICH_PROJECTION_DIM" \
+  --layer-summary-dim "$FEATURE_LAYER_SUMMARY_DIM" \
+  --per-layer-projection-dim "$FEATURE_PER_LAYER_PROJECTION_DIM" \
+  --max-layer-projections "$FEATURE_MAX_LAYER_PROJECTIONS" \
   --device "$DEVICE"
 
 echo "[convert_and_train] evaluating -> $CHECKPOINT_PATH"

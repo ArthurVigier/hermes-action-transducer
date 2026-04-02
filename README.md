@@ -92,6 +92,26 @@ python scripts/train_supervised.py \
   --epochs 20
 ```
 
+Tu peux choisir trois formes de features Hermes:
+
+- `compact`: seulement la forme 8+8 classique
+- `rich`: `8+8` + `hidden_projection` + resume agrege des couches
+- `per_layer`: `8+8` + `hidden_projection` + concat explicite des projections par couche
+
+Exemple:
+
+```bash
+python scripts/train_supervised.py \
+  --dataset data/droid_100_hermes_supervised.jsonl \
+  --checkpoint checkpoints/droid_100_hermes_per_layer.pt \
+  --feature-mode per_layer \
+  --rich-projection-dim 32 \
+  --per-layer-projection-dim 64 \
+  --max-layer-projections 3 \
+  --epochs 20 \
+  --device cuda
+```
+
 Evaluation:
 
 ```bash
@@ -165,6 +185,23 @@ python scripts/convert_hf_dataset.py \
 
 Si le dataset expose seulement `task_index`, tu peux aussi fournir un mapping `tasks.jsonl` via `--tasks-jsonl`.
 
+Pour brancher directement le vrai encodeur Hermes pendant la conversion:
+
+```bash
+python scripts/convert_hf_dataset.py \
+  --dataset-id lerobot/droid_100 \
+  --split train \
+  --robot-profile arm \
+  --source-format droid \
+  --encoder-backend hermes_hf \
+  --model-id NousResearch/Hermes-4.3-36B \
+  --torch-dtype bfloat16 \
+  --device-map auto \
+  --out data/droid_100_hermes_supervised.jsonl \
+  --max-rows 5000 \
+  --max-episodes 200
+```
+
 Tu peux aussi enchaîner directement conversion + train + eval:
 
 ```bash
@@ -175,6 +212,19 @@ CHECKPOINT_PATH=checkpoints/droid_100_action_ir.pt \
 bash scripts/convert_and_train.sh
 ```
 
+Version avec vrai Hermes HF pendant la conversion:
+
+```bash
+HF_DATASET_ID=lerobot/droid_100 \
+ROBOT_PROFILE=arm \
+ENCODER_BACKEND=hermes_hf \
+HERMES_MODEL_ID=NousResearch/Hermes-4.3-36B \
+HERMES_TORCH_DTYPE=bfloat16 \
+DATASET_PATH=data/droid_100_hermes_supervised.jsonl \
+CHECKPOINT_PATH=checkpoints/droid_100_hermes_action_ir.pt \
+bash scripts/convert_and_train.sh
+```
+
 Et sur RunPod, [runpod_train.sh](/Users/robertbadinter/Downloads/latent-relay/separate-repos/hermes-action-transducer/scripts/runpod_train.sh) sait maintenant faire la conversion automatiquement si tu lui passes `HF_DATASET_ID`:
 
 ```bash
@@ -182,6 +232,19 @@ HF_DATASET_ID=lerobot/droid_100 \
 ROBOT_PROFILE=arm \
 DATASET_PATH=/workspace/data/droid_100_supervised.jsonl \
 CHECKPOINT_PATH=/workspace/checkpoints/droid_100_action_ir.pt \
+bash scripts/runpod_train.sh
+```
+
+Version RunPod avec vrai Hermes HF pendant la conversion:
+
+```bash
+HF_DATASET_ID=lerobot/droid_100 \
+ROBOT_PROFILE=arm \
+ENCODER_BACKEND=hermes_hf \
+HERMES_MODEL_ID=NousResearch/Hermes-4.3-36B \
+HERMES_TORCH_DTYPE=bfloat16 \
+DATASET_PATH=/workspace/data/droid_100_hermes_supervised.jsonl \
+CHECKPOINT_PATH=/workspace/checkpoints/droid_100_hermes_action_ir.pt \
 bash scripts/runpod_train.sh
 ```
 

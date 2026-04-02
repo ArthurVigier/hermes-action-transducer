@@ -12,7 +12,10 @@ SRC = ROOT / "src"
 if str(SRC) not in sys.path:
     sys.path.insert(0, str(SRC))
 
+import torch
+
 from hermes_action_transducer.dataset import JSONLSupervisedDataset
+from hermes_action_transducer.features import FeatureConfig
 from hermes_action_transducer.training import evaluate_supervised
 
 
@@ -23,9 +26,21 @@ def main() -> int:
     ap.add_argument("--device", default="cpu")
     args = ap.parse_args()
 
-    dataset = JSONLSupervisedDataset(args.dataset)
+    payload = torch.load(args.checkpoint, map_location="cpu")
+    feature_config = FeatureConfig(**payload["config"].get("feature_config", {}))
+    dataset = JSONLSupervisedDataset(args.dataset, feature_config=feature_config)
     metrics = evaluate_supervised(dataset, args.checkpoint, device=args.device)
-    print(json.dumps({"checkpoint": args.checkpoint, "metrics": metrics}, indent=2))
+    print(
+        json.dumps(
+            {
+                "checkpoint": args.checkpoint,
+                "feature_config": feature_config.to_dict(),
+                "feature_dim": dataset.feature_dim,
+                "metrics": metrics,
+            },
+            indent=2,
+        )
+    )
     return 0
 
 

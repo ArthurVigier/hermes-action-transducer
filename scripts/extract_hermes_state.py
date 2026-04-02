@@ -23,6 +23,12 @@ def _parse_proprio(raw: str) -> list[float]:
     return [float(x.strip()) for x in raw.split(",") if x.strip()]
 
 
+def _parse_layer_indices(raw: str) -> tuple[int, ...]:
+    if not raw.strip():
+        return ()
+    return tuple(int(part.strip()) for part in raw.split(",") if part.strip())
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description="Extract Hermes hidden-state summary via Hugging Face")
     ap.add_argument("--task", required=True)
@@ -36,6 +42,9 @@ def main() -> int:
     ap.add_argument("--max-length", type=int, default=1024)
     ap.add_argument("--layer-index", type=int, default=-1)
     ap.add_argument("--pool-strategy", choices=["mean", "last_token"], default="mean")
+    ap.add_argument("--rich-projection-dim", type=int, default=128)
+    ap.add_argument("--layer-projection-dim", type=int, default=64)
+    ap.add_argument("--additional-layer-indices", default="-4,-8")
     ap.add_argument("--attn-implementation", default=None)
     args = ap.parse_args()
 
@@ -54,6 +63,9 @@ def main() -> int:
             max_length=args.max_length,
             layer_index=args.layer_index,
             pool_strategy=args.pool_strategy,
+            rich_projection_dim=args.rich_projection_dim,
+            layer_projection_dim=args.layer_projection_dim,
+            additional_layer_indices=_parse_layer_indices(args.additional_layer_indices),
             attn_implementation=args.attn_implementation,
         )
     )

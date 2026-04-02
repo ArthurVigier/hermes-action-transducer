@@ -6,8 +6,8 @@ from pathlib import Path
 import torch
 from torch import nn
 
-from hermes_action_transducer.constants import FEATURE_DIM, HORIZON_VOCAB, MODE_VOCAB, SPEED_VOCAB, TOOL_VOCAB
-from hermes_action_transducer.features import build_feature_vector
+from hermes_action_transducer.constants import HORIZON_VOCAB, MODE_VOCAB, SPEED_VOCAB, TOOL_VOCAB
+from hermes_action_transducer.features import FeatureConfig, build_feature_vector
 from hermes_action_transducer.models import (
     ActionIR,
     ActionTransducer,
@@ -19,11 +19,8 @@ from hermes_action_transducer.models import (
 from hermes_action_transducer.transducer import _infer_subgoal, _infer_targets
 
 
-INPUT_DIM = FEATURE_DIM
-
-
 class ActionIRNet(nn.Module):
-    def __init__(self, input_dim: int = INPUT_DIM, hidden_dim: int = 96) -> None:
+    def __init__(self, input_dim: int, hidden_dim: int = 96) -> None:
         super().__init__()
         self.backbone = nn.Sequential(
             nn.Linear(input_dim, hidden_dim),
@@ -57,13 +54,15 @@ class ActionIRNet(nn.Module):
 
 @dataclass
 class LearnedTransducerConfig:
-    input_dim: int = INPUT_DIM
+    input_dim: int
     hidden_dim: int = 96
+    feature_config: dict | None = None
 
 
 class LearnedActionTransducer(ActionTransducer):
-    def __init__(self, model: ActionIRNet) -> None:
+    def __init__(self, model: ActionIRNet, *, feature_config: FeatureConfig | None = None) -> None:
         self.model = model.eval()
+        self.feature_config = feature_config or FeatureConfig()
 
     @classmethod
     def from_checkpoint(cls, checkpoint_path: str | Path) -> "LearnedActionTransducer":
@@ -72,7 +71,8 @@ class LearnedActionTransducer(ActionTransducer):
         model = ActionIRNet(input_dim=config.input_dim, hidden_dim=config.hidden_dim)
         model.load_state_dict(payload["model_state"])
         model.eval()
-        return cls(model)
+        feature_config = FeatureConfig(**(config.feature_config or {}))
+        return cls(model, feature_config=feature_config)
 
     def predict(
         self,
@@ -81,7 +81,7 @@ class LearnedActionTransducer(ActionTransducer):
         profile: RobotProfileSpec,
     ) -> ActionIR:
         features = torch.tensor(
-            build_feature_vector(hermes_state, observation, profile),
+            build_feature_vector(hermes_state, observation, profile, self.feature_config),
             dtype=torch.float32,
         ).unsqueeze(0)
         with torch.no_grad():
@@ -128,6 +128,7 @@ def save_checkpoint(path: str | Path, model: ActionIRNet, config: LearnedTransdu
             "config": {
                 "input_dim": config.input_dim,
                 "hidden_dim": config.hidden_dim,
+                "feature_config": config.feature_config or {},
             },
             "model_state": model.state_dict(),
         },

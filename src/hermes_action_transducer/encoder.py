@@ -23,12 +23,15 @@ class SimpleHermesEncoder(HermesEncoder):
             f"profile={profile.name}; task={task}; state={state}; "
             f"tools={','.join(profile.runtime_tools[:4])}"
         )
+        synthetic_projection = _string_to_vector(f"{task}|{state}|{profile.name}", size=32)
         thought_vector = _string_to_vector(f"{task}|{state}|{profile.name}", size=8)
         intent_vector = _string_to_vector(task, size=8)
         return HermesState(
             summary_text=summary,
             thought_vector=thought_vector,
             intent_vector=intent_vector,
+            hidden_projection=synthetic_projection,
+            layer_projections={"synthetic_input": synthetic_projection[:16]},
             metadata={
                 "profile": profile.name,
                 "task_length": len(task.split()),
@@ -47,6 +50,9 @@ class HermesHFConfig:
     pool_strategy: str = "mean"
     trust_remote_code: bool = True
     attn_implementation: Optional[str] = None
+    rich_projection_dim: int = 128
+    layer_projection_dim: int = 64
+    additional_layer_indices: tuple[int, ...] = (-4, -8)
 
 
 class HermesHFEncoder(HermesEncoder):
@@ -72,10 +78,14 @@ class HermesHFEncoder(HermesEncoder):
         pooled = self._pool_hidden(selected, tokenized.get("attention_mask"))
         thought_vector = _compress_vector(pooled, size=8)
         intent_vector = _compress_vector(pooled[-64:] if len(pooled) >= 64 else pooled, size=8)
+        hidden_projection = _compress_vector(pooled, size=self.config.rich_projection_dim)
+        layer_projections = self._collect_layer_projections(hidden_states, tokenized.get("attention_mask"))
         return HermesState(
             summary_text=prompt[:400],
             thought_vector=thought_vector,
             intent_vector=intent_vector,
+            hidden_projection=hidden_projection,
+            layer_projections=layer_projections,
             metadata={
                 "profile": profile.name,
                 "model_id": self.config.model_id,
@@ -83,6 +93,10 @@ class HermesHFEncoder(HermesEncoder):
                 "layer_index": self.config.layer_index,
                 "pool_strategy": self.config.pool_strategy,
                 "input_tokens": int(tokenized["input_ids"].shape[-1]),
+                "hidden_dim": len(pooled),
+                "rich_projection_dim": self.config.rich_projection_dim,
+                "layer_projection_dim": self.config.layer_projection_dim,
+                "layer_projection_keys": list(layer_projections.keys()),
             },
         )
 
@@ -162,6 +176,20 @@ class HermesHFEncoder(HermesEncoder):
         except Exception:
             pooled = tensor.mean(dim=0)
             return pooled.detach().float().cpu().tolist()
+
+    def _collect_layer_projections(self, hidden_states, attention_mask) -> dict[str, list[float]]:
+        layer_projections: dict[str, list[float]] = {}
+        seen: set[int] = set()
+        for layer_index in (self.config.layer_index, *self.config.additional_layer_indices):
+            if layer_index in seen:
+                continue
+            seen.add(layer_index)
+            pooled = self._pool_hidden(hidden_states[layer_index], attention_mask)
+            layer_projections[f"layer_{layer_index}"] = _compress_vector(
+                pooled,
+                size=self.config.layer_projection_dim,
+            )
+        return layer_projections
 
 
 def _string_to_vector(raw: str, *, size: int) -> list[float]:

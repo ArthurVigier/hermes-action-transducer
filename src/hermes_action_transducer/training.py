@@ -6,6 +6,7 @@ import torch
 from torch import nn
 from torch.utils.data import DataLoader
 
+from hermes_action_transducer.features import FeatureConfig
 from hermes_action_transducer.learned_transducer import ActionIRNet, LearnedTransducerConfig, save_checkpoint
 
 
@@ -16,12 +17,14 @@ class TrainingConfig:
     learning_rate: float = 1e-3
     hidden_dim: int = 96
     device: str = "cpu"
+    feature_config: FeatureConfig | None = None
 
 
 def train_supervised(dataset, checkpoint_path: str, *, config: TrainingConfig | None = None) -> dict[str, float]:
     config = config or TrainingConfig()
     loader = DataLoader(dataset, batch_size=config.batch_size, shuffle=True)
-    model = ActionIRNet(hidden_dim=config.hidden_dim).to(config.device)
+    feature_config = config.feature_config or getattr(dataset, "feature_config", FeatureConfig())
+    model = ActionIRNet(input_dim=dataset.feature_dim, hidden_dim=config.hidden_dim).to(config.device)
     optimizer = torch.optim.Adam(model.parameters(), lr=config.learning_rate)
     ce_loss = nn.CrossEntropyLoss()
     mse_loss = nn.MSELoss()
@@ -72,7 +75,11 @@ def train_supervised(dataset, checkpoint_path: str, *, config: TrainingConfig | 
     save_checkpoint(
         checkpoint_path,
         model,
-        LearnedTransducerConfig(hidden_dim=config.hidden_dim),
+        LearnedTransducerConfig(
+            input_dim=dataset.feature_dim,
+            hidden_dim=config.hidden_dim,
+            feature_config=feature_config.to_dict(),
+        ),
     )
     return final_metrics
 

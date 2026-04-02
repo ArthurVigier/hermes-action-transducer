@@ -1,5 +1,6 @@
 from hermes_action_transducer.compiler import DimosMCPCompiler
 from hermes_action_transducer.encoder import HermesHFConfig, HermesHFEncoder, SimpleHermesEncoder
+from hermes_action_transducer.features import FeatureConfig
 from hermes_action_transducer.models import (
     ActionIR,
     CompiledAction,
@@ -19,6 +20,7 @@ __all__ = [
     "CompiledAction",
     "DEFAULT_PROFILE_NAME",
     "DimosMCPCompiler",
+    "FeatureConfig",
     "HermesState",
     "HermesHFConfig",
     "HermesHFEncoder",

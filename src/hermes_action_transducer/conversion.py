@@ -32,9 +32,10 @@ def convert_episode_rows_to_supervised_rows(
     task_lookup: dict[int, str] | None = None,
     max_episodes: int | None = None,
     source_format: str = "auto",
+    encoder=None,
 ) -> list[dict[str, Any]]:
     profile = get_profile(robot_profile)
-    encoder = SimpleHermesEncoder()
+    encoder = encoder or SimpleHermesEncoder()
     grouped: dict[int, list[dict[str, Any]]] = {}
 
     for row in rows:

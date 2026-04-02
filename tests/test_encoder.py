@@ -12,10 +12,19 @@ def test_simple_encoder_returns_vectors():
     state = encoder.encode(RobotObservation(task="Pick up the mug"), get_profile("arm"))
     assert len(state.thought_vector) == 8
     assert len(state.intent_vector) == 8
+    assert len(state.hidden_projection) >= 16
+    assert "synthetic_input" in state.layer_projections
 
 
 def test_hermes_hf_encoder_with_fake_backend():
-    encoder = HermesHFEncoder(HermesHFConfig(model_id="fake/hermes"))
+    encoder = HermesHFEncoder(
+        HermesHFConfig(
+            model_id="fake/hermes",
+            rich_projection_dim=24,
+            layer_projection_dim=12,
+            additional_layer_indices=(-2,),
+        )
+    )
 
     class FakeTensor:
         def __init__(self, data):
@@ -102,3 +111,7 @@ def test_hermes_hf_encoder_with_fake_backend():
     assert state.metadata["model_id"] == "fake/hermes"
     assert len(state.thought_vector) == 8
     assert len(state.intent_vector) == 8
+    assert len(state.hidden_projection) == 24
+    assert "layer_-1" in state.layer_projections
+    assert "layer_-2" in state.layer_projections
+    assert len(state.layer_projections["layer_-1"]) == 12
