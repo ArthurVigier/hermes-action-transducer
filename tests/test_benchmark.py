@@ -8,6 +8,7 @@ from hermes_action_transducer.benchmark import (
     make_feature_config,
     resolve_benchmark_modes,
 )
+from hermes_action_transducer.layer_sweep import layer_tag, parse_layer_indices_csv
 
 
 def test_resolve_complete_modes():
@@ -43,3 +44,12 @@ def test_percentile_interpolates():
 def test_metric_delta_handles_missing_values():
     assert _metric_delta(3.0, 1.5) == 1.5
     assert _metric_delta(None, 1.0) is None
+
+
+def test_parse_layer_indices_csv_dedupes():
+    assert parse_layer_indices_csv("-1,-2,-2,-4") == [-1, -2, -4]
+
+
+def test_layer_tag():
+    assert layer_tag(-8) == "neg8"
+    assert layer_tag(3) == "pos3"

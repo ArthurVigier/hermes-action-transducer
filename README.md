@@ -126,6 +126,7 @@ Le repo sait aussi lancer:
   - `avg_end_to_end_latency_ms`
   - `p50_end_to_end_latency_ms`
   - `p95_end_to_end_latency_ms`
+- un `layer_sweep` pour comparer `vanilla` vs `compact` couche par couche
 
 Script direct:
 
@@ -211,6 +212,33 @@ python scripts/benchmark_feature_modes.py \
   --modes vanilla,full \
   --epochs 20 \
   --device cuda
+```
+
+Exemple `layer_sweep`:
+
+```bash
+python scripts/benchmark_layer_sweep.py \
+  --dataset-id lerobot/droid_100 \
+  --split train \
+  --robot-profile arm \
+  --model-id NousResearch/Hermes-3-Llama-3.1-8B \
+  --hf-cache-dir /workspace/.hf \
+  --layers -1,-2,-4,-8,-16 \
+  --dataset-dir data/layer_sweep \
+  --checkpoint-dir benchmarks/layer_sweep_checkpoints \
+  --results-out benchmarks/layer_sweep.json \
+  --device cuda
+```
+
+Sur RunPod:
+
+```bash
+RUN_MODE=layer_sweep \
+LAYER_SWEEP_LAYERS=-1,-2,-4,-8,-16 \
+LAYER_SWEEP_RESULTS_PATH=/workspace/benchmarks/layer_sweep.json \
+LAYER_SWEEP_DATASET_DIR=/workspace/data/layer_sweep \
+LAYER_SWEEP_CHECKPOINT_DIR=/workspace/benchmarks/layer_sweep_ckpts \
+bash scripts/runpod_train.sh
 ```
 
 Evaluation:

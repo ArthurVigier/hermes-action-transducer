@@ -22,6 +22,10 @@ BENCHMARK_MODE="${BENCHMARK_MODE:-complete}"
 BENCHMARK_MODES="${BENCHMARK_MODES:-}"
 BENCHMARK_RESULTS_PATH="${BENCHMARK_RESULTS_PATH:-$ROOT_DIR/benchmarks/results.json}"
 BENCHMARK_CHECKPOINT_DIR="${BENCHMARK_CHECKPOINT_DIR:-$ROOT_DIR/benchmarks/checkpoints}"
+LAYER_SWEEP_LAYERS="${LAYER_SWEEP_LAYERS:--1,-2,-4,-8,-16}"
+LAYER_SWEEP_RESULTS_PATH="${LAYER_SWEEP_RESULTS_PATH:-$ROOT_DIR/benchmarks/layer_sweep_results.json}"
+LAYER_SWEEP_DATASET_DIR="${LAYER_SWEEP_DATASET_DIR:-$ROOT_DIR/data/layer_sweep}"
+LAYER_SWEEP_CHECKPOINT_DIR="${LAYER_SWEEP_CHECKPOINT_DIR:-$ROOT_DIR/benchmarks/layer_sweep_checkpoints}"
 HF_DATASET_ID="${HF_DATASET_ID:-}"
 HF_SPLIT="${HF_SPLIT:-train}"
 ROBOT_PROFILE="${ROBOT_PROFILE:-arm}"
@@ -161,6 +165,57 @@ if [[ "$RUN_MODE" == "benchmark" ]]; then
     --latency-samples "$LATENCY_SAMPLES" \
     --latency-warmup "$LATENCY_WARMUP" \
     --device "$DEVICE"
+elif [[ "$RUN_MODE" == "layer_sweep" ]]; then
+  echo "[runpod] running layer sweep layers=$LAYER_SWEEP_LAYERS"
+  python -m pip install -e ".[convert,hermes]"
+  LAYER_SWEEP_ARGS=(
+    --dataset-id "$HF_DATASET_ID"
+    --split "$HF_SPLIT"
+    --robot-profile "$ROBOT_PROFILE"
+    --model-id "$HERMES_MODEL_ID"
+    --device-map "$HERMES_DEVICE_MAP"
+    --torch-dtype "$HERMES_TORCH_DTYPE"
+    --hf-cache-dir "$HF_CACHE_DIR"
+    --max-length "$HERMES_MAX_LENGTH"
+    --pool-strategy "$HERMES_POOL_STRATEGY"
+    --rich-projection-dim "$HERMES_RICH_PROJECTION_DIM"
+    --layer-projection-dim "$HERMES_LAYER_PROJECTION_DIM"
+    "--additional-layer-indices=$HERMES_ADDITIONAL_LAYER_INDICES"
+    --max-rows "$MAX_ROWS"
+    --max-episodes "$MAX_EPISODES"
+    --layers "$LAYER_SWEEP_LAYERS"
+    --dataset-dir "$LAYER_SWEEP_DATASET_DIR"
+    --checkpoint-dir "$LAYER_SWEEP_CHECKPOINT_DIR"
+    --results-out "$LAYER_SWEEP_RESULTS_PATH"
+    --epochs "$EPOCHS"
+    --batch-size "$BATCH_SIZE"
+    --learning-rate "$LEARNING_RATE"
+    --hidden-dim "$HIDDEN_DIM"
+    --feature-rich-projection-dim "$FEATURE_RICH_PROJECTION_DIM"
+    --feature-layer-summary-dim "$FEATURE_LAYER_SUMMARY_DIM"
+    --feature-per-layer-projection-dim "$FEATURE_PER_LAYER_PROJECTION_DIM"
+    --feature-max-layer-projections "$FEATURE_MAX_LAYER_PROJECTIONS"
+    --latency-samples "$LATENCY_SAMPLES"
+    --latency-warmup "$LATENCY_WARMUP"
+    --pair-modes "vanilla,compact"
+    --device "$DEVICE"
+  )
+  if [[ "$FORCE_REBUILD_DATASET" == "1" ]]; then
+    LAYER_SWEEP_ARGS+=(--force-rebuild-dataset)
+  fi
+  if [[ "$LOCAL_FILES_ONLY" == "1" ]]; then
+    LAYER_SWEEP_ARGS+=(--local-files-only)
+  fi
+  if [[ "$HF_STREAMING" == "1" ]]; then
+    LAYER_SWEEP_ARGS+=(--streaming)
+  fi
+  if [[ -n "$TASKS_JSONL" ]]; then
+    LAYER_SWEEP_ARGS+=(--tasks-jsonl "$TASKS_JSONL")
+  fi
+  if [[ -n "$HERMES_ATTN_IMPLEMENTATION" ]]; then
+    LAYER_SWEEP_ARGS+=(--attn-implementation "$HERMES_ATTN_IMPLEMENTATION")
+  fi
+  "$PYTHON_BIN" scripts/benchmark_layer_sweep.py "${LAYER_SWEEP_ARGS[@]}"
 else
   if [[ "$FORCE_RETRAIN" == "1" || ! -f "$CHECKPOINT_PATH" ]]; then
     echo "[runpod] training checkpoint -> $CHECKPOINT_PATH"
