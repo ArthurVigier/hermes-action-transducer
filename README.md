@@ -133,6 +133,65 @@ python scripts/benchmark_feature_modes.py \
   --device cuda
 ```
 
+## Evaluation CaP-X
+
+J'ai ajoute une integration dediee a l'eval officielle `CaP-X / CaP-Bench`.
+
+Important:
+
+- cette integration lance le vrai runner officiel `capx/envs/launch.py`
+- elle parse ensuite le resume officiel `success_rate/avg_reward/task_completed`
+- elle evalue donc un endpoint agent code-gen compatible OpenAI
+- elle ne transforme pas encore automatiquement le transducteur `ActionIR` en agent `CaP-X`
+
+Le module s'appuie sur les conventions officielles du repo `capgym/cap-x`:
+
+- 8 tiers `S1-S4 / M1-M4`
+- configs YAML dans `env_configs/<suite>/`
+- regression officielle sur `cube_stack`
+
+Exemple benchmark complet sur `cube_stack`:
+
+```bash
+python scripts/benchmark_capx.py \
+  --capx-root /path/to/cap-x \
+  --results-out benchmarks/capx_cube_stack_complete.json \
+  --suites cube_stack \
+  --benchmark-mode complete \
+  --model NousResearch/Hermes-4.3-36B \
+  --server-url http://127.0.0.1:8110/chat/completions
+```
+
+Exemple pair `S2` vs `M3`:
+
+```bash
+python scripts/benchmark_capx.py \
+  --capx-root /path/to/cap-x \
+  --results-out benchmarks/capx_cube_stack_s2_vs_m3.json \
+  --suites cube_stack \
+  --benchmark-mode pair \
+  --tiers S2,M3 \
+  --model NousResearch/Hermes-4.3-36B \
+  --server-url http://127.0.0.1:8110/chat/completions
+```
+
+Dry-run pour verifier les commandes sans lancer l'eval:
+
+```bash
+python scripts/benchmark_capx.py \
+  --capx-root /path/to/cap-x \
+  --results-out benchmarks/capx_dry_run.json \
+  --suites cube_stack \
+  --benchmark-mode complete \
+  --dry-run
+```
+
+Sur RunPod, tu peux utiliser:
+
+```bash
+bash scripts/runpod_capx.sh
+```
+
 Exemple pair:
 
 ```bash
