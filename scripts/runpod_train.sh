@@ -110,7 +110,7 @@ if [[ ! -f "$DATASET_PATH" ]]; then
         --pool-strategy "$HERMES_POOL_STRATEGY"
         --rich-projection-dim "$HERMES_RICH_PROJECTION_DIM"
         --layer-projection-dim "$HERMES_LAYER_PROJECTION_DIM"
-        --additional-layer-indices "$HERMES_ADDITIONAL_LAYER_INDICES"
+        "--additional-layer-indices=$HERMES_ADDITIONAL_LAYER_INDICES"
       )
       if [[ -n "$HERMES_ATTN_IMPLEMENTATION" ]]; then
         CONVERT_ARGS+=(--attn-implementation "$HERMES_ATTN_IMPLEMENTATION")
