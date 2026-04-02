@@ -1,0 +1,21 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "hermes-action-transducer"
+version = "0.1.0"
+description = "Hermes-centered action IR and embodiment compiler for robot runtimes"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = []
+
+[project.optional-dependencies]
+train = ["torch>=2.1"]
+convert = ["datasets>=2.19", "huggingface_hub>=0.23"]
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
