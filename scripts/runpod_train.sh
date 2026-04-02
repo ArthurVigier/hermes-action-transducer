@@ -92,7 +92,7 @@ if [[ -n "$HF_CACHE_DIR" ]]; then
   mkdir -p "$HUGGINGFACE_HUB_CACHE"
 fi
 
-if [[ "$FORCE_REBUILD_DATASET" == "1" || ! -f "$DATASET_PATH" ]]; then
+if [[ "$RUN_MODE" != "layer_sweep" && ( "$FORCE_REBUILD_DATASET" == "1" || ! -f "$DATASET_PATH" ) ]]; then
   if [[ -n "$HF_DATASET_ID" ]]; then
     echo "[runpod] installing conversion deps"
     python -m pip install -e ".[convert]"
@@ -183,7 +183,7 @@ elif [[ "$RUN_MODE" == "layer_sweep" ]]; then
     "--additional-layer-indices=$HERMES_ADDITIONAL_LAYER_INDICES"
     --max-rows "$MAX_ROWS"
     --max-episodes "$MAX_EPISODES"
-    --layers "$LAYER_SWEEP_LAYERS"
+    "--layers=$LAYER_SWEEP_LAYERS"
     --dataset-dir "$LAYER_SWEEP_DATASET_DIR"
     --checkpoint-dir "$LAYER_SWEEP_CHECKPOINT_DIR"
     --results-out "$LAYER_SWEEP_RESULTS_PATH"
