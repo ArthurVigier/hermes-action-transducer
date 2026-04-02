@@ -227,6 +227,23 @@ Sur RunPod, le plus simple est d'utiliser directement:
 bash scripts/runpod_train.sh
 ```
 
+Pour eviter de retelecharger/reconvertir si les artefacts existent deja:
+
+- `FORCE_REBUILD_DATASET=0` garde le JSONL existant
+- `FORCE_RETRAIN=0` garde le checkpoint existant
+- `HF_CACHE_DIR=/workspace/.hf` force un cache Hugging Face persistant
+- `LOCAL_FILES_ONLY=1` force l'usage du cache local sans retéléchargement
+
+Exemple:
+
+```bash
+HF_CACHE_DIR=/workspace/.hf \
+LOCAL_FILES_ONLY=1 \
+FORCE_REBUILD_DATASET=0 \
+FORCE_RETRAIN=0 \
+bash scripts/runpod_train.sh
+```
+
 Ce v1 d'entrainement apprend deja:
 
 - `mode`

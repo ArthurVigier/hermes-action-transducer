@@ -11,6 +11,8 @@ HF_SPLIT="${HF_SPLIT:-train}"
 ROBOT_PROFILE="${ROBOT_PROFILE:-arm}"
 DATASET_PATH="${DATASET_PATH:-$ROOT_DIR/data/${ROBOT_PROFILE}_supervised.jsonl}"
 CHECKPOINT_PATH="${CHECKPOINT_PATH:-$ROOT_DIR/checkpoints/action_ir.pt}"
+FORCE_REBUILD_DATASET="${FORCE_REBUILD_DATASET:-0}"
+FORCE_RETRAIN="${FORCE_RETRAIN:-0}"
 MAX_ROWS="${MAX_ROWS:-50000}"
 MAX_EPISODES="${MAX_EPISODES:-2000}"
 EPOCHS="${EPOCHS:-50}"
@@ -42,46 +44,65 @@ HERMES_RICH_PROJECTION_DIM="${HERMES_RICH_PROJECTION_DIM:-128}"
 HERMES_LAYER_PROJECTION_DIM="${HERMES_LAYER_PROJECTION_DIM:-64}"
 HERMES_ADDITIONAL_LAYER_INDICES="${HERMES_ADDITIONAL_LAYER_INDICES:--4,-8}"
 HERMES_ATTN_IMPLEMENTATION="${HERMES_ATTN_IMPLEMENTATION:-}"
+HF_CACHE_DIR="${HF_CACHE_DIR:-}"
+LOCAL_FILES_ONLY="${LOCAL_FILES_ONLY:-0}"
 
 mkdir -p "$(dirname "$DATASET_PATH")" "$(dirname "$CHECKPOINT_PATH")" "$(dirname "$BENCHMARK_RESULTS_PATH")" "$BENCHMARK_CHECKPOINT_DIR"
-
-CONVERT_ARGS=(
-  --dataset-id "$HF_DATASET_ID"
-  --split "$HF_SPLIT"
-  --robot-profile "$ROBOT_PROFILE"
-  --encoder-backend "$ENCODER_BACKEND"
-  --out "$DATASET_PATH"
-  --max-rows "$MAX_ROWS"
-  --max-episodes "$MAX_EPISODES"
-)
-
-if [[ "$HF_STREAMING" == "1" ]]; then
-  CONVERT_ARGS+=(--streaming)
+if [[ -n "$HF_CACHE_DIR" ]]; then
+  mkdir -p "$HF_CACHE_DIR"
+  export HF_HOME="${HF_HOME:-$HF_CACHE_DIR}"
+  export HUGGINGFACE_HUB_CACHE="${HUGGINGFACE_HUB_CACHE:-$HF_CACHE_DIR/hub}"
+  mkdir -p "$HUGGINGFACE_HUB_CACHE"
 fi
 
-if [[ -n "$TASKS_JSONL" ]]; then
-  CONVERT_ARGS+=(--tasks-jsonl "$TASKS_JSONL")
-fi
-
-if [[ "$ENCODER_BACKEND" == "hermes_hf" ]]; then
-  CONVERT_ARGS+=(
-    --model-id "$HERMES_MODEL_ID"
-    --device-map "$HERMES_DEVICE_MAP"
-    --torch-dtype "$HERMES_TORCH_DTYPE"
-    --max-length "$HERMES_MAX_LENGTH"
-    --layer-index "$HERMES_LAYER_INDEX"
-    --pool-strategy "$HERMES_POOL_STRATEGY"
-    --rich-projection-dim "$HERMES_RICH_PROJECTION_DIM"
-    --layer-projection-dim "$HERMES_LAYER_PROJECTION_DIM"
-    "--additional-layer-indices=$HERMES_ADDITIONAL_LAYER_INDICES"
+if [[ "$FORCE_REBUILD_DATASET" == "1" || ! -f "$DATASET_PATH" ]]; then
+  CONVERT_ARGS=(
+    --dataset-id "$HF_DATASET_ID"
+    --split "$HF_SPLIT"
+    --robot-profile "$ROBOT_PROFILE"
+    --encoder-backend "$ENCODER_BACKEND"
+    --out "$DATASET_PATH"
+    --max-rows "$MAX_ROWS"
+    --max-episodes "$MAX_EPISODES"
   )
-  if [[ -n "$HERMES_ATTN_IMPLEMENTATION" ]]; then
-    CONVERT_ARGS+=(--attn-implementation "$HERMES_ATTN_IMPLEMENTATION")
-  fi
-fi
 
-echo "[convert_and_train] converting $HF_DATASET_ID -> $DATASET_PATH"
-"$PYTHON_BIN" scripts/convert_hf_dataset.py "${CONVERT_ARGS[@]}"
+  if [[ "$HF_STREAMING" == "1" ]]; then
+    CONVERT_ARGS+=(--streaming)
+  fi
+
+  if [[ -n "$TASKS_JSONL" ]]; then
+    CONVERT_ARGS+=(--tasks-jsonl "$TASKS_JSONL")
+  fi
+
+  if [[ -n "$HF_CACHE_DIR" ]]; then
+    CONVERT_ARGS+=(--hf-cache-dir "$HF_CACHE_DIR")
+  fi
+  if [[ "$LOCAL_FILES_ONLY" == "1" ]]; then
+    CONVERT_ARGS+=(--local-files-only)
+  fi
+
+  if [[ "$ENCODER_BACKEND" == "hermes_hf" ]]; then
+    CONVERT_ARGS+=(
+      --model-id "$HERMES_MODEL_ID"
+      --device-map "$HERMES_DEVICE_MAP"
+      --torch-dtype "$HERMES_TORCH_DTYPE"
+      --max-length "$HERMES_MAX_LENGTH"
+      --layer-index "$HERMES_LAYER_INDEX"
+      --pool-strategy "$HERMES_POOL_STRATEGY"
+      --rich-projection-dim "$HERMES_RICH_PROJECTION_DIM"
+      --layer-projection-dim "$HERMES_LAYER_PROJECTION_DIM"
+      "--additional-layer-indices=$HERMES_ADDITIONAL_LAYER_INDICES"
+    )
+    if [[ -n "$HERMES_ATTN_IMPLEMENTATION" ]]; then
+      CONVERT_ARGS+=(--attn-implementation "$HERMES_ATTN_IMPLEMENTATION")
+    fi
+  fi
+
+  echo "[convert_and_train] converting $HF_DATASET_ID -> $DATASET_PATH"
+  "$PYTHON_BIN" scripts/convert_hf_dataset.py "${CONVERT_ARGS[@]}"
+else
+  echo "[convert_and_train] reusing existing dataset -> $DATASET_PATH"
+fi
 
 if [[ "$RUN_MODE" == "benchmark" ]]; then
   echo "[convert_and_train] benchmark mode=$BENCHMARK_MODE modes=$BENCHMARK_MODES"
@@ -103,20 +124,24 @@ if [[ "$RUN_MODE" == "benchmark" ]]; then
     --latency-warmup "$LATENCY_WARMUP" \
     --device "$DEVICE"
 else
-  echo "[convert_and_train] training -> $CHECKPOINT_PATH"
-  "$PYTHON_BIN" scripts/train_supervised.py \
-    --dataset "$DATASET_PATH" \
-    --checkpoint "$CHECKPOINT_PATH" \
-    --epochs "$EPOCHS" \
-    --batch-size "$BATCH_SIZE" \
-    --learning-rate "$LEARNING_RATE" \
-    --hidden-dim "$HIDDEN_DIM" \
-    --feature-mode "$FEATURE_MODE" \
-    --rich-projection-dim "$FEATURE_RICH_PROJECTION_DIM" \
-    --layer-summary-dim "$FEATURE_LAYER_SUMMARY_DIM" \
-    --per-layer-projection-dim "$FEATURE_PER_LAYER_PROJECTION_DIM" \
-    --max-layer-projections "$FEATURE_MAX_LAYER_PROJECTIONS" \
-    --device "$DEVICE"
+  if [[ "$FORCE_RETRAIN" == "1" || ! -f "$CHECKPOINT_PATH" ]]; then
+    echo "[convert_and_train] training -> $CHECKPOINT_PATH"
+    "$PYTHON_BIN" scripts/train_supervised.py \
+      --dataset "$DATASET_PATH" \
+      --checkpoint "$CHECKPOINT_PATH" \
+      --epochs "$EPOCHS" \
+      --batch-size "$BATCH_SIZE" \
+      --learning-rate "$LEARNING_RATE" \
+      --hidden-dim "$HIDDEN_DIM" \
+      --feature-mode "$FEATURE_MODE" \
+      --rich-projection-dim "$FEATURE_RICH_PROJECTION_DIM" \
+      --layer-summary-dim "$FEATURE_LAYER_SUMMARY_DIM" \
+      --per-layer-projection-dim "$FEATURE_PER_LAYER_PROJECTION_DIM" \
+      --max-layer-projections "$FEATURE_MAX_LAYER_PROJECTIONS" \
+      --device "$DEVICE"
+  else
+    echo "[convert_and_train] reusing existing checkpoint -> $CHECKPOINT_PATH"
+  fi
 
   echo "[convert_and_train] evaluating -> $CHECKPOINT_PATH"
   "$PYTHON_BIN" scripts/eval_supervised.py \

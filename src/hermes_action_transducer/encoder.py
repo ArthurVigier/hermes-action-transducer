@@ -53,6 +53,8 @@ class HermesHFConfig:
     rich_projection_dim: int = 128
     layer_projection_dim: int = 64
     additional_layer_indices: tuple[int, ...] = (-4, -8)
+    cache_dir: Optional[str] = None
+    local_files_only: bool = False
 
 
 class HermesHFEncoder(HermesEncoder):
@@ -119,11 +121,15 @@ class HermesHFEncoder(HermesEncoder):
             self._tokenizer = AutoTokenizer.from_pretrained(
                 self.config.model_id,
                 trust_remote_code=self.config.trust_remote_code,
+                cache_dir=self.config.cache_dir,
+                local_files_only=self.config.local_files_only,
             )
             model_kwargs: dict[str, Any] = {
                 "trust_remote_code": self.config.trust_remote_code,
                 "device_map": self.config.device_map,
                 "torch_dtype": torch_dtype,
+                "cache_dir": self.config.cache_dir,
+                "local_files_only": self.config.local_files_only,
             }
             if self.config.attn_implementation:
                 model_kwargs["attn_implementation"] = self.config.attn_implementation

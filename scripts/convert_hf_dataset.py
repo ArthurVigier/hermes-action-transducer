@@ -35,6 +35,8 @@ def main() -> int:
     ap.add_argument("--model-id", default="NousResearch/Hermes-4.3-36B")
     ap.add_argument("--device-map", default="auto")
     ap.add_argument("--torch-dtype", default="auto")
+    ap.add_argument("--hf-cache-dir", default=None)
+    ap.add_argument("--local-files-only", action="store_true")
     ap.add_argument("--max-length", type=int, default=1024)
     ap.add_argument("--layer-index", type=int, default=-1)
     ap.add_argument("--pool-strategy", choices=["mean", "last_token"], default="mean")
@@ -65,6 +67,8 @@ def main() -> int:
                 model_id=args.model_id,
                 device_map=args.device_map,
                 torch_dtype=args.torch_dtype,
+                cache_dir=args.hf_cache_dir,
+                local_files_only=args.local_files_only,
                 max_length=args.max_length,
                 layer_index=args.layer_index,
                 pool_strategy=args.pool_strategy,
@@ -75,7 +79,15 @@ def main() -> int:
             )
         )
 
-    dataset = load_dataset(args.dataset_id, split=args.split, streaming=args.streaming)
+    load_dataset_kwargs = {
+        "split": args.split,
+        "streaming": args.streaming,
+    }
+    if args.hf_cache_dir:
+        load_dataset_kwargs["cache_dir"] = args.hf_cache_dir
+    if args.local_files_only:
+        load_dataset_kwargs["download_mode"] = "reuse_dataset_if_exists"
+    dataset = load_dataset(args.dataset_id, **load_dataset_kwargs)
     rows = []
     for idx, row in enumerate(dataset):
         payload = dict(row)
